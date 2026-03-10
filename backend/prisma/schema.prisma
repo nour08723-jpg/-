@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleCode { ADMIN FINANCE_MANAGER ACCOUNTANT DATA_ENTRY }
+enum DocStatus { DRAFT APPROVED POSTED CANCELLED }
+enum PaymentType { CASH CREDIT }
+enum FiscalStatus { OPEN CLOSED }
+enum SubledgerType { CUSTOMER SUPPLIER ADVANCE }
+enum BeneficiaryType { EMPLOYEE CUSTOMER SUPPLIER OTHER }
+enum SettlementType { EXPENSE CASH_RETURN OTHER }
+
+model User {
+  id Int @id @default(autoincrement())
+  username String @unique
+  fullName String
+  passwordHash String
+  roleId Int
+  isActive Boolean @default(true)
+  role Role @relation(fields:[roleId], references:[id])
+  auditLogs AuditLog[]
+}
+
+model Role {
+  id Int @id @default(autoincrement())
+  code RoleCode @unique
+  name String
+  users User[]
+  rolePermissions RolePermission[]
+}
+model Permission {
+  id Int @id @default(autoincrement())
+  code String @unique
+  description String
+  rolePermissions RolePermission[]
+}
+model RolePermission {
+  roleId Int
+  permissionId Int
+  role Role @relation(fields:[roleId], references:[id])
+  permission Permission @relation(fields:[permissionId], references:[id])
+  @@id([roleId, permissionId])
+}
+
+model Account {
+  id Int @id @default(autoincrement())
+  code String @unique
+  nameAr String
+  type String
+  isControl Boolean @default(false)
+  controlSubledgerType SubledgerType?
+  isPostable Boolean @default(true)
+}
+
+model RevenueCategory { id Int @id @default(autoincrement()) name String accountId Int }
+model ExpenseCategory { id Int @id @default(autoincrement()) name String accountId Int }
+
+model Customer {
+  id Int @id @default(autoincrement())
+  code String @unique
+  name String
+  phone String?
+  address String?
+  openingBalanceIls Decimal @default(0) @db.Decimal(14,2)
+  isActive Boolean @default(true)
+}
+model Supplier {
+  id Int @id @default(autoincrement())
+  code String @unique
+  name String
+  phone String?
+  address String?
+  openingBalanceIls Decimal @default(0) @db.Decimal(14,2)
+  isActive Boolean @default(true)
+}
+
+model RevenueHeader {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  docDate DateTime
+  customerId Int?
+  categoryId Int
+  paymentType PaymentType
+  totalAmountIls Decimal @db.Decimal(14,2)
+  notes String?
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+model ExpenseHeader {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  docDate DateTime
+  supplierId Int?
+  categoryId Int
+  paymentType PaymentType
+  totalAmountIls Decimal @db.Decimal(14,2)
+  notes String?
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+model CustomerReceipt {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  receiptDate DateTime
+  customerId Int
+  amountIls Decimal @db.Decimal(14,2)
+  notes String?
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+model SupplierPayment {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  paymentDate DateTime
+  supplierId Int
+  amountIls Decimal @db.Decimal(14,2)
+  notes String?
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+model Advance {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  advanceDate DateTime
+  beneficiaryType BeneficiaryType
+  beneficiaryName String
+  amountIls Decimal @db.Decimal(14,2)
+  settledAmountIls Decimal @default(0) @db.Decimal(14,2)
+  notes String?
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+model AdvanceSettlement {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  advanceId Int
+  settlementDate DateTime
+  settlementType SettlementType
+  amountIls Decimal @db.Decimal(14,2)
+  expenseCategoryId Int?
+  notes String?
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+
+model JournalEntry {
+  id Int @id @default(autoincrement())
+  entryNo String @unique
+  sourceType String
+  sourceId Int
+  entryDate DateTime
+  description String
+  status String @default("POSTED")
+  reversedEntryId Int?
+  createdBy Int
+  createdAt DateTime @default(now())
+  lines JournalLine[]
+}
+model JournalLine {
+  id Int @id @default(autoincrement())
+  journalEntryId Int
+  accountId Int
+  description String?
+  debitIls Decimal @default(0) @db.Decimal(14,2)
+  creditIls Decimal @default(0) @db.Decimal(14,2)
+  subledgerType SubledgerType?
+  referenceId Int?
+  journalEntry JournalEntry @relation(fields:[journalEntryId], references:[id])
+}
+model SubledgerEntry {
+  id Int @id @default(autoincrement())
+  entryDate DateTime
+  subledgerType SubledgerType
+  referenceId Int
+  sourceType String
+  sourceId Int
+  debitIls Decimal @default(0) @db.Decimal(14,2)
+  creditIls Decimal @default(0) @db.Decimal(14,2)
+  notes String?
+}
+model CashTransaction {
+  id Int @id @default(autoincrement())
+  txDate DateTime
+  sourceType String
+  sourceId Int
+  direction String
+  amountIls Decimal @db.Decimal(14,2)
+  notes String?
+}
+model DocumentSequence {
+  id Int @id @default(autoincrement())
+  documentType String
+  fiscalYear Int
+  prefix String
+  lastNumber Int @default(0)
+  @@unique([documentType, fiscalYear])
+}
+model FiscalPeriod {
+  id Int @id @default(autoincrement())
+  name String @unique
+  startDate DateTime
+  endDate DateTime
+  status FiscalStatus
+}
+model SystemSetting {
+  id Int @id @default(autoincrement())
+  key String @unique
+  value String
+}
+model AuditLog {
+  id Int @id @default(autoincrement())
+  action String
+  entityType String
+  entityId Int
+  oldValues Json?
+  newValues Json?
+  userId Int
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id])
+}
+model DocumentStatusHistory {
+  id Int @id @default(autoincrement())
+  entityType String
+  entityId Int
+  previousStatus String?
+  newStatus String
+  action String
+  changedBy Int
+  changedAt DateTime @default(now())
+}
+
+model ManualJournal {
+  id Int @id @default(autoincrement())
+  docNo String @unique
+  entryDate DateTime
+  description String
+  status DocStatus @default(DRAFT)
+  postedJournalEntryId Int?
+}
+model ManualJournalLine {
+  id Int @id @default(autoincrement())
+  manualJournalId Int
+  accountId Int
+  description String?
+  debitIls Decimal @default(0) @db.Decimal(14,2)
+  creditIls Decimal @default(0) @db.Decimal(14,2)
+  subledgerType SubledgerType?
+  referenceId Int?
+}

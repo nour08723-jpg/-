@@ -1,0 +1,14 @@
+{
+  "name": "ils-accounting-system",
+  "private": true,
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "install:all": "npm install --workspaces",
+    "dev": "concurrently \"npm --workspace backend run dev\" \"npm --workspace frontend run dev\"",
+    "build": "npm -ws run build",
+    "test": "npm --workspace backend run test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
