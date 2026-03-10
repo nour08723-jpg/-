@@ -1,0 +1,1 @@
+body{font-family:Tahoma;background:#f6f7fb;margin:0}.container{display:flex;min-height:100vh}aside{width:230px;background:#0f172a;color:white;padding:16px;display:flex;flex-direction:column;gap:8px}aside a{color:#cbd5e1;text-decoration:none}main{flex:1;padding:20px}input,button{display:block;margin:6px 0;padding:8px}.badge{padding:4px 8px;border-radius:12px}
